@@ -124,7 +124,7 @@ class vanillaRNN(nn.Module):
         return output
 
 
-def train(model, train_data, val_data, optimizer, loss_f, device, batch_size=128, n_epochs=700, ES=None, **kwargs):
+def train(model, train_data, val_data, **kwargs):
     # training the pytorch neural network model
     # param model: pytorch neural network model
     # param train_data: n-dimensional array that can be loaded by torch DataLoader
@@ -134,8 +134,16 @@ def train(model, train_data, val_data, optimizer, loss_f, device, batch_size=128
     # param device: torch.device for GPU if available. otherwise, cpu
     # param batch_size: number of input data in a batch (default=128)
     # param n_epochs: number of epochs for training (default=700)
-    # param ES: early stopping criteria. (default: None, no early stopping)
+    # param ES: early stopping criteria. (default: simpleEarlyStopping)
     # return a tuple in the order of train loss, validation loss, train accuracy, validation accuracy from all epochs
+    n_epochs = kwargs.get("epochs", 700)
+    ES = kwargs.get("ES", simpleEarlyStopping(patience=20))
+    batch_size = kwargs.get("batch_size", 128)
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    loss_f = kwargs.get("loss_f", nn.CrossEntropyLoss())
+    loss_f.float()
+    optimizer = kwargs.get("optimizer", torch.optim.Adam(model.parameters(), lr=5e-4, weight_decay=0.25))
+
     all_train_loss = np.empty(n_epochs)
     all_val_loss = np.empty(n_epochs)
     all_train_acc = np.empty(n_epochs)
@@ -227,7 +235,9 @@ def train(model, train_data, val_data, optimizer, loss_f, device, batch_size=128
     return all_train_loss[:i+1], all_val_loss[:i+1], all_train_acc[:i+1], all_val_acc[:i+1]
 
 
-def predict(model, x):
+
+def predict(model, x, **kwargs):
+    # param model: pytorch nueral net model
     # param x: an input (vector or tensor)
     # return the predicted classes of x. return data type(torch.tensor)
     y_pred = model(x).squeeze().detach()
@@ -274,13 +284,16 @@ def visualize_train_log(train_loss, val_loss, train_acc, val_acc, loss_fname):
 
 
 
-def test(model, test_data, device, batch_size=128, **kwargs):
+def test(model, test_data, **kwargs):
     # testing the pytorch neural network model
     # param model: pytorch neural network model
     # param test_data: n-dimensional array that can be loaded by torch DataLoader
     # param device: torch.device for GPU if available. otherwise, cpu
     # param batch_size: number of input data in a batch (default=128)
     # return a tuple of ground truth test labels and predicted classes
+
+    batch_size = kwargs.get("batch_size", 128)
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # indicate whether binary or multiclass classification (default: multiclass)
     is_binary = kwargs.get('is_binary',False)
@@ -312,3 +325,10 @@ def test(model, test_data, device, batch_size=128, **kwargs):
             # compile the ground truth test labels in test data (same order as predicted classes)
             test_true[batch_size * j:batch_size * (j + 1)] = y_test_batch.numpy()
     return test_true, test_pred
+
+
+
+
+
+
+
